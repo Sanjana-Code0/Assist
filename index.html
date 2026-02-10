@@ -5,15 +5,51 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ShadowLight AI Assistant</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; width: 400px; height: 600px; margin: 0; padding: 0; }
+        /* Base styles to replace Tailwind CDN for extension compatibility */
+        :root {
+          --indigo-50: #f5f3ff;
+          --indigo-100: #ede9fe;
+          --indigo-600: #4f46e5;
+          --indigo-700: #4338ca;
+          --gray-50: #f9fafb;
+          --gray-100: #f3f4f6;
+          --gray-200: #e5e7eb;
+          --gray-400: #9ca3af;
+          --gray-600: #4b5563;
+          --gray-800: #1f2937;
+          --gray-900: #111827;
+        }
+        body { 
+          font-family: 'Inter', sans-serif; 
+          width: 400px; 
+          height: 600px; 
+          margin: 0; 
+          padding: 0; 
+          background-color: var(--gray-50);
+          color: var(--gray-900);
+        }
+        #root { height: 100%; width: 100%; }
+        
+        /* Accessibility Filters */
         .high-contrast { filter: contrast(1.5) brightness(1.2); }
         .grayscale { filter: grayscale(1); }
         .protanopia { filter: url('#protanopia-filter'); }
         .deuteranopia { filter: url('#deuteranopia-filter'); }
         .tritanopia { filter: url('#tritanopia-filter'); }
+
+        /* Utility classes to support the existing component structure */
+        .bg-white { background-color: #ffffff; }
+        .bg-gray-50 { background-color: var(--gray-50); }
+        .bg-indigo-600 { background-color: var(--indigo-600); }
+        .text-white { color: #ffffff; }
+        .text-indigo-600 { color: var(--indigo-600); }
+        .overflow-hidden { overflow: hidden; }
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .h-full { height: 100%; }
+        .w-full { width: 100%; }
     </style>
 <script type="importmap">
 {
@@ -32,7 +68,7 @@
 </head>
 <body class="bg-gray-50 text-gray-900 overflow-hidden">
     <div id="root"></div>
-    <!-- Vite handles the transformation of index.tsx into index.js during build -->
+    <!-- Vite bundles index.tsx into a local index.js during the build process -->
     <script type="module" src="/index.tsx"></script>
 
     <!-- SVG Filters for Color Blindness Simulation -->

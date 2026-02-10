@@ -13,7 +13,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ToolTab>(ToolTab.ACCESSIBILITY);
   const [accessMode, setAccessMode] = useState<AccessibilityMode>(AccessibilityMode.NORMAL);
   const [activeStep, setActiveStep] = useState<NavStep | null>(null);
-  const [pageInfo, setPageInfo] = useState({ title: 'Loading...', url: '' });
+  const [pageInfo, setPageInfo] = useState({ title: 'Ready', url: '' });
   const [contextData, setContextData] = useState<DistilledMap | null>(null);
 
   const getFilterClass = () => {
@@ -27,14 +27,17 @@ const App: React.FC = () => {
   };
 
   const refreshPageData = () => {
-    if (typeof chrome !== 'undefined' && chrome.tabs) {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs: any) => {
-        if (tabs[0]) {
-          setPageInfo({ title: tabs[0].title, url: tabs[0].url });
+    if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs: any[]) => {
+        if (tabs && tabs[0]) {
+          setPageInfo({ title: tabs[0].title || 'Unknown Page', url: tabs[0].url || '' });
 
           if (tabs[0].id) {
-            // Request the high-accuracy distilled map from content.ts
             chrome.tabs.sendMessage(tabs[0].id, { type: 'SCRAPE_PAGE' }, (response: DistilledMap) => {
+              if (chrome.runtime.lastError) {
+                console.warn("Content script not ready yet or not found on this page.");
+                return;
+              }
               if (response) {
                 setContextData(response);
                 chrome.tabs.sendMessage(tabs[0].id, {
@@ -52,7 +55,7 @@ const App: React.FC = () => {
   useEffect(() => {
     refreshPageData();
 
-    if (typeof chrome !== 'undefined' && chrome.tabs) {
+    if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.onUpdated) {
       const listener = (tabId: number, changeInfo: any, tab: any) => {
         if (changeInfo.status === 'complete' && tab.active) {
           refreshPageData();
@@ -64,29 +67,29 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (typeof chrome !== 'undefined' && chrome.tabs) {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs: any) => {
-        if (tabs[0]?.id) {
+    if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs: any[]) => {
+        if (tabs && tabs[0]?.id) {
           chrome.tabs.sendMessage(tabs[0].id, {
             type: 'APPLY_CONTRAST',
             filter: getFilterClass()
-          });
+          }).catch(() => {}); // Ignore errors if content script is gone
         }
       });
     }
   }, [accessMode]);
 
   useEffect(() => {
-    if (typeof chrome !== 'undefined' && chrome.tabs) {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs: any) => {
-        if (tabs[0]?.id) {
+    if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query) {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs: any[]) => {
+        if (tabs && tabs[0]?.id) {
           if (activeStep) {
             chrome.tabs.sendMessage(tabs[0].id, {
               type: 'HIGHLIGHT_ELEMENT',
               selector: activeStep.selector
-            });
+            }).catch(() => {});
           } else {
-            chrome.tabs.sendMessage(tabs[0].id, { type: 'CLEAR_HIGHLIGHT' });
+            chrome.tabs.sendMessage(tabs[0].id, { type: 'CLEAR_HIGHLIGHT' }).catch(() => {});
           }
         }
       });
@@ -107,23 +110,30 @@ const App: React.FC = () => {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 py-4 flex flex-col items-center gap-2 transition-all relative overflow-hidden group ${activeTab === tab.id ? 'text-indigo-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
-              }`}
+            style={{ 
+              flex: 1, 
+              padding: '16px 0', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              gap: '8px',
+              border: 'none',
+              background: 'none',
+              cursor: 'pointer',
+              color: activeTab === tab.id ? 'var(--indigo-600)' : 'var(--gray-400)'
+            }}
           >
-            <span className={`text-xl transition-transform duration-300 ${activeTab === tab.id ? 'scale-110' : 'group-hover:scale-110'}`}>
-              {tab.icon}
-            </span>
-            <span className="text-[10px] font-bold tracking-tight">{tab.label}</span>
-
+            <span style={{ fontSize: '20px' }}>{tab.icon}</span>
+            <span style={{ fontSize: '10px', fontWeight: 'bold' }}>{tab.label}</span>
             {activeTab === tab.id && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 animate-in fade-in slide-in-from-left duration-300"></span>
+              <div style={{ position: 'absolute', bottom: 0, height: '2px', width: '100%', backgroundColor: 'var(--indigo-600)' }} />
             )}
           </button>
         ))}
       </div>
 
-      <div className="flex-1 overflow-hidden relative bg-gray-50/30">
-        <div className="absolute inset-0 overflow-y-auto">
+      <div style={{ flex: 1, overflow: 'hidden', position: 'relative', backgroundColor: 'rgba(249, 250, 251, 0.3)' }}>
+        <div style={{ position: 'absolute', inset: 0, overflowY: 'auto' }}>
           {activeTab === ToolTab.CHAT && <ChatTab distilledMap={contextData} />}
           {activeTab === ToolTab.SUMMARIZE && <SummarizeTab distilledMap={contextData} />}
           {activeTab === ToolTab.ACCESSIBILITY && <AccessibilityTab currentMode={accessMode} onModeChange={setAccessMode} />}
@@ -137,14 +147,23 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      <div className="p-3 bg-white border-t border-gray-100 flex justify-between items-center px-5 py-4">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.4)]"></span>
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">AI Engine: Gemini 3 Pro</span>
+      <div style={{ padding: '12px 20px', backgroundColor: 'white', borderTop: '1px solid var(--gray-100)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ width: '8px', height: '8px', backgroundColor: '#4ade80', borderRadius: '50%' }}></div>
+          <span style={{ fontSize: '10px', fontWeight: 'bold', color: 'var(--gray-400)', textTransform: 'uppercase' }}>Gemini 3 Pro Active</span>
         </div>
         <button 
           onClick={refreshPageData}
-          className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition"
+          style={{ 
+            backgroundColor: 'var(--indigo-50)', 
+            color: 'var(--indigo-600)', 
+            border: 'none', 
+            padding: '6px 12px', 
+            borderRadius: '8px', 
+            fontSize: '10px', 
+            fontWeight: '900', 
+            cursor: 'pointer' 
+          }}
         >
           RESCAN
         </button>
