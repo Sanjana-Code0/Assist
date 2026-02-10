@@ -4,12 +4,15 @@ import react from '@vitejs/plugin-react';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-// Fix: Define __dirname for ESM environment which is required for path resolution in Vite
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    // This injects your API key from the environment into the bundled code
+    'process.env.API_KEY': JSON.stringify(process.env.API_KEY || ''),
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
@@ -20,7 +23,6 @@ export default defineConfig({
         content: resolve(__dirname, 'content.ts'),
       },
       output: {
-        // Ensure background and content scripts have fixed names for the manifest to find
         entryFileNames: (chunk) => {
           if (chunk.name === 'background' || chunk.name === 'content') {
             return '[name].js';
