@@ -2,24 +2,19 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { SummaryResult, NavStep } from "../types";
 
-/**
- * AI Controller: Core brain of the extension.
- * Using the required GoogleGenAI class and gemini-3 series models.
- */
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
  * Summarization Engine
- * Uses Gemini 3 Flash for speed and efficiency.
+ * Uses Gemini 3 Flash. High context, low cost.
  */
-export const summarizePage = async (pageContent: string, mode: 'full' | 'short' | 'eli5'): Promise<SummaryResult> => {
+export const summarizePage = async (distilledMap: any, mode: 'full' | 'short' | 'eli5'): Promise<SummaryResult> => {
   try {
     const prompt = `
-      Summarize the following web content.
-      Mode: ${mode === 'full' ? 'Comprehensive summary' : mode === 'short' ? 'Concise' : 'ELI5'}.
+      Based on this distilled page data:
+      ${JSON.stringify(distilledMap)}
       
-      CONTENT:
-      ${pageContent}
+      Generate a ${mode} summary.
     `;
 
     const response = await ai.models.generateContent({
@@ -32,43 +27,61 @@ export const summarizePage = async (pageContent: string, mode: 'full' | 'short' 
           properties: {
             title: { type: Type.STRING },
             content: { type: Type.STRING },
-            keyTakeaways: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            }
+            keyTakeaways: { type: Type.ARRAY, items: { type: Type.STRING } }
           },
           required: ["title", "content", "keyTakeaways"]
         }
       }
     });
 
-    const text = response.text;
-    if (!text) throw new Error("Empty response from AI");
-    return JSON.parse(text);
+    return JSON.parse(response.text || '{}');
   } catch (err: any) {
     throw new Error(`Summarization Failed: ${err.message}`);
   }
 };
 
 /**
- * Navigation Engine (High Precision)
- * Uses Gemini 3 Pro for complex reasoning about page structures.
+ * Repurpose Content Engine
+ * Uses Gemini 3 Flash to transform content into different formats such as tweets, blogs, or articles.
+ * Added to fix the missing export error in SummarizeTab.
  */
-export const generateNavGuide = async (goal: string, currentUrl: string, pageSchema: string): Promise<NavStep[]> => {
+export const repurposeContent = async (pageContent: any, format: 'tweet' | 'blog' | 'article'): Promise<string> => {
+  try {
+    const prompt = `Repurpose the following page content into a ${format}:\n\n${JSON.stringify(pageContent)}`;
+    
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+    });
+
+    return response.text || "";
+  } catch (err: any) {
+    throw new Error(`Repurposing Failed: ${err.message}`);
+  }
+};
+
+/**
+ * Navigation Engine (Maximum Precision)
+ * Uses Gemini 3 Pro with thinkingBudget to handle complex logic.
+ */
+export const generateNavGuide = async (goal: string, distilledMap: any): Promise<NavStep[]> => {
   try {
     const prompt = `
-      You are an expert AI Navigation Assistant.
       USER GOAL: "${goal}"
-      CURRENT LOCATION: ${currentUrl}
-      SCHEMA: ${pageSchema}
+      CURRENT PAGE: ${distilledMap.url}
       
-      Generate a precise, step-by-step navigation path as a JSON array.
+      INTERACTIVE MAP:
+      ${JSON.stringify(distilledMap.interactiveElements)}
+
+      Generate a step-by-step navigation path. 
+      Only use selectors found in the provided interactive map.
     `;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: prompt,
       config: {
+        thinkingConfig: { thinkingBudget: 4000 }, // Enable deep reasoning for utmost accuracy
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
@@ -87,49 +100,20 @@ export const generateNavGuide = async (goal: string, currentUrl: string, pageSch
       }
     });
 
-    const text = response.text;
-    if (!text) throw new Error("Empty response from AI");
-    return JSON.parse(text);
+    return JSON.parse(response.text || '[]');
   } catch (err: any) {
     throw new Error(`Navigation Failure: ${err.message}`);
   }
 };
 
-/**
- * Context-Aware Chat
- */
-export const chatWithContext = async (query: string, context: string) => {
-  const systemInstruction = `You are ShadowLight, a helpful web accessibility assistant. 
-  You have the current page content as context. Respond clearly and concisely.
-  
-  PAGE CONTENT:
-  ${context}`;
-
+export const chatWithContext = async (query: string, distilledMap: any) => {
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: query,
+    contents: `CONTEXT:\n${JSON.stringify(distilledMap)}\n\nUSER QUERY: ${query}`,
     config: {
-      systemInstruction,
-      maxOutputTokens: 1000,
+      systemInstruction: 'You are ShadowLight. Help the user navigate or understand this page using the provided distilled map.',
+      maxOutputTokens: 800,
     }
   });
-
   return response.text || "I couldn't generate a response.";
-};
-
-/**
- * Content Repurposing
- */
-export const repurposeContent = async (pageContent: string, format: 'tweet' | 'blog' | 'article'): Promise<string> => {
-  const prompt = `Repurpose the following content into a ${format} format. 
-  
-  CONTENT:
-  ${pageContent}`;
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    contents: prompt
-  });
-
-  return response.text || "No content generated.";
 };

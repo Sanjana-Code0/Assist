@@ -12,10 +12,10 @@ function createOverlay() {
   overlay.style.cssText = `
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.6);
+    background: rgba(0,0,0,0.4);
     z-index: 999998;
     pointer-events: none;
-    transition: opacity 0.5s;
+    transition: opacity 0.3s;
     opacity: 0;
   `;
   document.body.appendChild(overlay);
@@ -23,36 +23,51 @@ function createOverlay() {
   spotlight = document.createElement('div');
   spotlight.style.cssText = `
     position: absolute;
-    border: 4px solid #FACC15;
-    border-radius: 12px;
-    box-shadow: 0 0 20px rgba(250, 204, 21, 0.4);
+    border: 3px solid #6366f1;
+    border-radius: 8px;
+    box-shadow: 0 0 15px rgba(99, 102, 241, 0.5), 0 0 0 4000px rgba(0,0,0,0.3);
     z-index: 999999;
     pointer-events: none;
-    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     display: none;
   `;
   document.body.appendChild(spotlight);
 }
 
-function applyCustomTheme(textColor: string, bgColor: string) {
-  if (!themeStyleTag) {
-    themeStyleTag = document.createElement('style');
-    document.head.appendChild(themeStyleTag);
-  }
-  // Force styles with !important to ensure visibility regardless of site CSS
-  themeStyleTag.innerHTML = `
-    * {
-      background-color: ${bgColor} !important;
-      color: ${textColor} !important;
-      border-color: ${textColor} !important;
-    }
-    img, video, canvas, svg {
-      filter: contrast(1.2) !important;
-    }
-  `;
+/**
+ * Semantic Distiller: Prunes the DOM to only essential interactive elements.
+ * This saves massive amounts of tokens while keeping navigation accurate.
+ */
+function getDistilledMap() {
+  const interactiveSelectors = 'a, button, input, select, textarea, [role="button"], [tabindex]:not([tabindex="-1"])';
+  const elements = document.querySelectorAll(interactiveSelectors);
+  
+  const map = Array.from(elements).map((el: any) => {
+    const rect = el.getBoundingClientRect();
+    // Filter out invisible elements
+    if (rect.width === 0 || rect.height === 0 || getComputedStyle(el).display === 'none') return null;
+
+    return {
+      tagName: el.tagName.toLowerCase(),
+      id: el.id || undefined,
+      className: el.className.toString().split(' ').slice(0, 3).join(' ') || undefined,
+      text: (el.innerText || el.value || el.placeholder || '').substring(0, 50).trim(),
+      ariaLabel: el.getAttribute('aria-label') || undefined,
+      type: el.type || undefined,
+      // Best selector guess for the model
+      suggestedSelector: el.id ? `#${el.id}` : `${el.tagName.toLowerCase()}${el.className ? '.' + el.className.toString().split(' ')[0] : ''}`
+    };
+  }).filter(Boolean);
+
+  return {
+    url: window.location.href,
+    title: document.title,
+    interactiveElements: map,
+    mainText: document.body.innerText.substring(0, 2000) // Small text sample for context
+  };
 }
 
-chrome.runtime.onMessage.addListener((request: any) => {
+chrome.runtime.onMessage.addListener((request: any, sender: any, sendResponse: any) => {
   if (request.type === 'HIGHLIGHT_ELEMENT') {
     createOverlay();
     const el = document.querySelector(request.selector);
@@ -63,10 +78,10 @@ chrome.runtime.onMessage.addListener((request: any) => {
 
       overlay.style.opacity = '1';
       spotlight.style.display = 'block';
-      spotlight.style.top = `${rect.top + scrollY - 4}px`;
-      spotlight.style.left = `${rect.left + scrollX - 4}px`;
-      spotlight.style.width = `${rect.width + 8}px`;
-      spotlight.style.height = `${rect.height + 8}px`;
+      spotlight.style.top = `${rect.top + scrollY - 2}px`;
+      spotlight.style.left = `${rect.left + scrollX - 2}px`;
+      spotlight.style.width = `${rect.width + 4}px`;
+      spotlight.style.height = `${rect.height + 4}px`;
       
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
@@ -77,23 +92,23 @@ chrome.runtime.onMessage.addListener((request: any) => {
     if (spotlight) spotlight.style.display = 'none';
   }
   
-  if (request.type === 'APPLY_CONTRAST') {
-    document.body.style.filter = request.filter || 'none';
+  if (request.type === 'SCRAPE_PAGE') {
+    sendResponse(getDistilledMap());
+    return true;
   }
 
   if (request.type === 'APPLY_THEME') {
-    applyCustomTheme(request.textColor, request.bgColor);
+    if (!themeStyleTag) {
+      themeStyleTag = document.createElement('style');
+      document.head.appendChild(themeStyleTag);
+    }
+    themeStyleTag.innerHTML = `
+      * { background-color: ${request.bgColor} !important; color: ${request.textColor} !important; border-color: ${request.textColor} !important; }
+      img, video { filter: contrast(1.2) grayscale(0.5) !important; }
+    `;
   }
 
   if (request.type === 'RESET_THEME') {
-    if (themeStyleTag) {
-      themeStyleTag.innerHTML = '';
-    }
-  }
-
-  if (request.type === 'SCRAPE_PAGE') {
-    // Basic page scraper for side panel intelligence
-    const text = document.body.innerText;
-    return { pageText: text.substring(0, 10000) };
+    if (themeStyleTag) themeStyleTag.innerHTML = '';
   }
 });

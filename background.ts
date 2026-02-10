@@ -1,3 +1,4 @@
+
 import { summarizePage, generateNavGuide, chatWithContext } from './services/geminiService';
 
 declare const chrome: any;
@@ -15,8 +16,9 @@ chrome.runtime.onMessage.addListener((request: any, sender: any, sendResponse: a
     return true;
   }
   
+  // Fixed: Passed 2 arguments (goal, distilledMap) to match the service definition.
   if (request.type === 'GENERATE_NAV') {
-    generateNavGuide(request.goal, request.url, request.schema)
+    generateNavGuide(request.goal, request.distilledMap)
       .then(sendResponse)
       .catch(handleError);
     return true;
