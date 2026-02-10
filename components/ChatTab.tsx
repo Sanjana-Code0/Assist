@@ -1,16 +1,13 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { chatWithContext } from '../services/geminiService';
-import { ChatMessage } from '../types';
+import { ChatMessage, DistilledMap } from '../types';
 
 interface ChatTabProps {
-  pageContent: string;
+  distilledMap: DistilledMap | null;
 }
 
-/**
- * ChatWindow & InputBar: Represents the "ShadowLight Chatbot (React UI)" from the diagram.
- */
-export const ChatTab: React.FC<ChatTabProps> = ({ pageContent }) => {
+export const ChatTab: React.FC<ChatTabProps> = ({ distilledMap }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -23,7 +20,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ pageContent }) => {
   }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || !distilledMap) return;
 
     const userMessage: ChatMessage = { role: 'user', content: input };
     setMessages(prev => [...prev, userMessage]);
@@ -31,7 +28,7 @@ export const ChatTab: React.FC<ChatTabProps> = ({ pageContent }) => {
     setIsLoading(true);
 
     try {
-      const response = await chatWithContext(input, pageContent);
+      const response = await chatWithContext(input, distilledMap);
       setMessages(prev => [...prev, { role: 'assistant', content: response || "I'm sorry, I couldn't process that." }]);
     } catch (error) {
       console.error(error);
@@ -43,13 +40,15 @@ export const ChatTab: React.FC<ChatTabProps> = ({ pageContent }) => {
 
   return (
     <div className="flex flex-col h-full bg-white">
-      {/* Chat Window */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
         {messages.length === 0 && (
           <div className="text-center py-12 px-8">
-            <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">👋</div>
-            <h3 className="font-bold text-gray-800 mb-2">I'm ShadowLight</h3>
-            <p className="text-xs text-gray-500 leading-relaxed">Ask me anything about this page. I can explain complex terms, find data, or help you navigate.</p>
+            <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">🤖</div>
+            <h3 className="font-bold text-gray-800 mb-2">Contextual Assistant</h3>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              I have scanned {distilledMap?.interactiveElements.length || 0} interactive elements. 
+              Ask me "How do I..." or "Where is the..." and I'll guide you.
+            </p>
           </div>
         )}
         {messages.map((msg, i) => (
@@ -74,7 +73,6 @@ export const ChatTab: React.FC<ChatTabProps> = ({ pageContent }) => {
         )}
       </div>
 
-      {/* Input Bar */}
       <div className="p-4 border-t bg-gray-50">
         <div className="relative">
           <input
@@ -82,13 +80,14 @@ export const ChatTab: React.FC<ChatTabProps> = ({ pageContent }) => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Type your query..."
-            className="w-full rounded-2xl border-gray-200 bg-white text-xs px-4 py-3.5 focus:ring-2 focus:ring-indigo-600 transition pr-12"
+            placeholder={!distilledMap ? "Scanning page..." : "Ask about the page..."}
+            disabled={!distilledMap || isLoading}
+            className="w-full rounded-2xl border-gray-200 bg-white text-xs px-4 py-3.5 focus:ring-2 focus:ring-indigo-600 transition pr-12 disabled:opacity-50"
           />
           <button 
             onClick={handleSend}
-            disabled={isLoading}
-            className="absolute right-2 top-1.5 bg-indigo-600 text-white p-2 rounded-xl hover:bg-indigo-700 transition shadow-lg"
+            disabled={isLoading || !distilledMap}
+            className="absolute right-2 top-1.5 bg-indigo-600 text-white p-2 rounded-xl hover:bg-indigo-700 transition shadow-lg disabled:opacity-50"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 rotate-90" viewBox="0 0 20 20" fill="currentColor">
               <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />

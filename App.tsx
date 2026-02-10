@@ -5,9 +5,8 @@ import { ChatTab } from './components/ChatTab';
 import { SummarizeTab } from './components/SummarizeTab';
 import { AccessibilityTab } from './components/AccessibilityTab';
 import { NavigateTab } from './components/NavigateTab';
-import { AccessibilityMode, ToolTab, NavStep } from './types';
+import { AccessibilityMode, ToolTab, NavStep, DistilledMap } from './types';
 
-// Declare chrome for TypeScript in the global scope to fix compilation errors.
 declare const chrome: any;
 
 const App: React.FC = () => {
@@ -15,7 +14,7 @@ const App: React.FC = () => {
   const [accessMode, setAccessMode] = useState<AccessibilityMode>(AccessibilityMode.NORMAL);
   const [activeStep, setActiveStep] = useState<NavStep | null>(null);
   const [pageInfo, setPageInfo] = useState({ title: 'Loading...', url: '' });
-  const [pageContent, setPageContent] = useState('');
+  const [contextData, setContextData] = useState<DistilledMap | null>(null);
 
   const getFilterClass = () => {
     switch (accessMode) {
@@ -34,9 +33,10 @@ const App: React.FC = () => {
           setPageInfo({ title: tabs[0].title, url: tabs[0].url });
 
           if (tabs[0].id) {
-            chrome.tabs.sendMessage(tabs[0].id, { type: 'SCRAPE_PAGE' }, (response: any) => {
+            // Request the high-accuracy distilled map from content.ts
+            chrome.tabs.sendMessage(tabs[0].id, { type: 'SCRAPE_PAGE' }, (response: DistilledMap) => {
               if (response) {
-                setPageContent(response.pageText || '');
+                setContextData(response);
                 chrome.tabs.sendMessage(tabs[0].id, {
                   type: 'APPLY_CONTRAST',
                   filter: getFilterClass()
@@ -99,10 +99,10 @@ const App: React.FC = () => {
 
       <div className="flex border-b border-gray-100 bg-white relative z-0">
         {[
-          { id: ToolTab.ACCESSIBILITY, label: 'Accessibility', icon: 'eye' },
-          { id: ToolTab.NAVIGATE, label: 'Navigation', icon: 'compass' },
-          { id: ToolTab.SUMMARIZE, label: 'Intelligence', icon: 'sparkles' },
-          { id: ToolTab.CHAT, label: 'Assistant', icon: 'chat-bubble-oval-left' },
+          { id: ToolTab.ACCESSIBILITY, label: 'Accessibility', icon: '👁️' },
+          { id: ToolTab.NAVIGATE, label: 'Navigation', icon: '🧭' },
+          { id: ToolTab.SUMMARIZE, label: 'Intelligence', icon: '✨' },
+          { id: ToolTab.CHAT, label: 'Assistant', icon: '💬' },
         ].map(tab => (
           <button
             key={tab.id}
@@ -111,10 +111,7 @@ const App: React.FC = () => {
               }`}
           >
             <span className={`text-xl transition-transform duration-300 ${activeTab === tab.id ? 'scale-110' : 'group-hover:scale-110'}`}>
-              {tab.icon === 'eye' && '👁️'}
-              {tab.icon === 'compass' && '🧭'}
-              {tab.icon === 'sparkles' && '✨'}
-              {tab.icon === 'chat-bubble-oval-left' && '💬'}
+              {tab.icon}
             </span>
             <span className="text-[10px] font-bold tracking-tight">{tab.label}</span>
 
@@ -127,8 +124,8 @@ const App: React.FC = () => {
 
       <div className="flex-1 overflow-hidden relative bg-gray-50/30">
         <div className="absolute inset-0 overflow-y-auto">
-          {activeTab === ToolTab.CHAT && <ChatTab pageContent={pageContent} />}
-          {activeTab === ToolTab.SUMMARIZE && <SummarizeTab pageContent={pageContent} />}
+          {activeTab === ToolTab.CHAT && <ChatTab distilledMap={contextData} />}
+          {activeTab === ToolTab.SUMMARIZE && <SummarizeTab distilledMap={contextData} />}
           {activeTab === ToolTab.ACCESSIBILITY && <AccessibilityTab currentMode={accessMode} onModeChange={setAccessMode} />}
           {activeTab === ToolTab.NAVIGATE && (
             <NavigateTab
@@ -143,10 +140,13 @@ const App: React.FC = () => {
       <div className="p-3 bg-white border-t border-gray-100 flex justify-between items-center px-5 py-4">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.4)]"></span>
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">AI Engine: Gemini 3 Flash</span>
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">AI Engine: Gemini 3 Pro</span>
         </div>
-        <button className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition">
-          HOME
+        <button 
+          onClick={refreshPageData}
+          className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition"
+        >
+          RESCAN
         </button>
       </div>
     </div>

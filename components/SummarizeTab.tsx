@@ -1,22 +1,23 @@
 
 import React, { useState } from 'react';
 import { summarizePage, repurposeContent } from '../services/geminiService';
-import { SummaryResult } from '../types';
+import { SummaryResult, DistilledMap } from '../types';
 
 interface SummarizeTabProps {
-  pageContent: string;
+  distilledMap: DistilledMap | null;
 }
 
-export const SummarizeTab: React.FC<SummarizeTabProps> = ({ pageContent }) => {
+export const SummarizeTab: React.FC<SummarizeTabProps> = ({ distilledMap }) => {
   const [result, setResult] = useState<SummaryResult | null>(null);
   const [repurposeResult, setRepurposeResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSummarize = async (mode: 'full' | 'short' | 'eli5') => {
+    if (!distilledMap) return;
     setLoading(true);
     setRepurposeResult(null);
     try {
-      const res = await summarizePage(pageContent, mode);
+      const res = await summarizePage(distilledMap, mode);
       setResult(res);
     } catch (error) {
       console.error(error);
@@ -26,10 +27,11 @@ export const SummarizeTab: React.FC<SummarizeTabProps> = ({ pageContent }) => {
   };
 
   const handleRepurpose = async (format: 'tweet' | 'blog' | 'article') => {
+    if (!distilledMap) return;
     setLoading(true);
     setResult(null);
     try {
-      const res = await repurposeContent(pageContent, format);
+      const res = await repurposeContent(distilledMap, format);
       setRepurposeResult(res);
     } catch (error) {
       console.error(error);
@@ -37,6 +39,15 @@ export const SummarizeTab: React.FC<SummarizeTabProps> = ({ pageContent }) => {
       setLoading(false);
     }
   };
+
+  if (!distilledMap) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-8 text-center text-gray-400">
+        <div className="text-4xl mb-4 animate-pulse">🛰️</div>
+        <p className="text-xs font-bold uppercase tracking-widest">Scanning Page Structure...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 space-y-6 overflow-y-auto h-full bg-white">
@@ -47,7 +58,7 @@ export const SummarizeTab: React.FC<SummarizeTabProps> = ({ pageContent }) => {
         </h3>
         <div className="grid grid-cols-3 gap-2">
           {[
-            { id: 'full', label: 'Full Summary', icon: '📄' },
+            { id: 'full', label: 'Full', icon: '📄' },
             { id: 'short', label: 'Short', icon: '⚡' },
             { id: 'eli5', label: 'Simple', icon: '🧒' }
           ].map((mode) => (
@@ -72,7 +83,7 @@ export const SummarizeTab: React.FC<SummarizeTabProps> = ({ pageContent }) => {
         <div className="grid grid-cols-3 gap-2">
           {[
             { id: 'tweet', label: 'Tweets', icon: '🐦' },
-            { id: 'blog', label: 'Blog Post', icon: '✍️' },
+            { id: 'blog', label: 'Blog', icon: '✍️' },
             { id: 'article', label: 'Article', icon: '📑' }
           ].map((format) => (
             <button
@@ -92,7 +103,7 @@ export const SummarizeTab: React.FC<SummarizeTabProps> = ({ pageContent }) => {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-12 text-gray-400">
             <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p className="text-xs">Analyzing page content...</p>
+            <p className="text-xs">Analyzing semantic map...</p>
           </div>
         ) : result ? (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -126,8 +137,8 @@ export const SummarizeTab: React.FC<SummarizeTabProps> = ({ pageContent }) => {
           </div>
         ) : (
           <div className="text-center py-10 opacity-30 select-none">
-            <div className="text-5xl mb-2">📥</div>
-            <p className="text-xs">Select an option above to generate insights.</p>
+            <div className="text-5xl mb-2">📊</div>
+            <p className="text-xs">Select an option above to process the page map.</p>
           </div>
         )}
       </div>

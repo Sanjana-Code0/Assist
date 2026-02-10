@@ -9,13 +9,30 @@ export enum AccessibilityMode {
   TRITANOPIA = 'TRITANOPIA'
 }
 
+export interface InteractiveElement {
+  tagName: string;
+  id?: string;
+  className?: string;
+  text: string;
+  ariaLabel?: string;
+  type?: string;
+  suggestedSelector: string;
+}
+
+export interface DistilledMap {
+  url: string;
+  title: string;
+  interactiveElements: InteractiveElement[];
+  mainText: string;
+}
+
 export interface NavStep {
   selector: string;
   instruction: string;
   action: 'click' | 'hover' | 'type';
   targetPage: string; 
-  contextHint?: string; // e.g., "in the top navigation bar", "at the bottom of the form"
-  elementDescription?: string; // Physical description of the element for better matching
+  contextHint?: string;
+  elementDescription?: string;
   expectedOutcome?: string;
   confidenceScore: number;
 }
