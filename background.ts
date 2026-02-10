@@ -3,6 +3,11 @@ import { summarizePage, generateNavGuide, chatWithContext } from './services/gem
 
 declare const chrome: any;
 
+// Listen for installation to confirm background script is alive
+chrome.runtime.onInstalled.addListener(() => {
+  console.log('ShadowLight AI Assistant Background Script Installed');
+});
+
 chrome.runtime.onMessage.addListener((request: any, sender: any, sendResponse: any) => {
   const handleError = (err: any) => {
     console.error('AI Controller Error:', err);
@@ -13,10 +18,9 @@ chrome.runtime.onMessage.addListener((request: any, sender: any, sendResponse: a
     summarizePage(request.content, request.mode)
       .then(sendResponse)
       .catch(handleError);
-    return true;
+    return true; // Keep channel open for async response
   }
   
-  // Fixed: Passed 2 arguments (goal, distilledMap) to match the service definition.
   if (request.type === 'GENERATE_NAV') {
     generateNavGuide(request.goal, request.distilledMap)
       .then(sendResponse)

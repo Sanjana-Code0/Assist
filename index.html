@@ -8,7 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        body { font-family: 'Inter', sans-serif; width: 400px; height: 600px; margin: 0; padding: 0; }
         .high-contrast { filter: contrast(1.5) brightness(1.2); }
         .grayscale { filter: grayscale(1); }
         .protanopia { filter: url('#protanopia-filter'); }
@@ -18,20 +18,21 @@
 <script type="importmap">
 {
   "imports": {
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.40.0",
     "vite": "https://esm.sh/vite@^7.3.1",
     "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.4",
     "path": "https://esm.sh/path@^0.12.7",
-    "url": "https://esm.sh/url@^0.11.4",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "react": "https://esm.sh/react@^19.2.4",
-    "@google/genai": "https://esm.sh/@google/genai@^1.40.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/"
+    "url": "https://esm.sh/url@^0.11.4"
   }
 }
 </script>
 </head>
 <body class="bg-gray-50 text-gray-900 overflow-hidden">
     <div id="root"></div>
+    <!-- Vite handles the transformation of index.tsx into index.js during build -->
     <script type="module" src="/index.tsx"></script>
 
     <!-- SVG Filters for Color Blindness Simulation -->

@@ -10,7 +10,6 @@ const __dirname = dirname(__filename);
 export default defineConfig({
   plugins: [react()],
   define: {
-    // This injects your API key from the environment into the bundled code
     'process.env.API_KEY': JSON.stringify(process.env.API_KEY || ''),
   },
   build: {
