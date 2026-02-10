@@ -112,7 +112,9 @@ export const chatWithContext = async (query: string, distilledMap: any) => {
     contents: `CONTEXT:\n${JSON.stringify(distilledMap)}\n\nUSER QUERY: ${query}`,
     config: {
       systemInstruction: 'You are ShadowLight. Help the user navigate or understand this page using the provided distilled map.',
+      // Fix: Setting thinkingBudget alongside maxOutputTokens to prevent response blocking
       maxOutputTokens: 800,
+      thinkingConfig: { thinkingBudget: 400 },
     }
   });
   return response.text || "I couldn't generate a response.";
