@@ -1,8 +1,10 @@
+
 // Declare chrome for TypeScript in the global scope to fix compilation errors.
 declare const chrome: any;
 
 let overlay: HTMLDivElement | null = null;
 let spotlight: HTMLDivElement | null = null;
+let themeStyleTag: HTMLStyleElement | null = null;
 
 function createOverlay() {
   if (overlay) return;
@@ -32,6 +34,24 @@ function createOverlay() {
   document.body.appendChild(spotlight);
 }
 
+function applyCustomTheme(textColor: string, bgColor: string) {
+  if (!themeStyleTag) {
+    themeStyleTag = document.createElement('style');
+    document.head.appendChild(themeStyleTag);
+  }
+  // Force styles with !important to ensure visibility regardless of site CSS
+  themeStyleTag.innerHTML = `
+    * {
+      background-color: ${bgColor} !important;
+      color: ${textColor} !important;
+      border-color: ${textColor} !important;
+    }
+    img, video, canvas, svg {
+      filter: contrast(1.2) !important;
+    }
+  `;
+}
+
 chrome.runtime.onMessage.addListener((request: any) => {
   if (request.type === 'HIGHLIGHT_ELEMENT') {
     createOverlay();
@@ -59,5 +79,21 @@ chrome.runtime.onMessage.addListener((request: any) => {
   
   if (request.type === 'APPLY_CONTRAST') {
     document.body.style.filter = request.filter || 'none';
+  }
+
+  if (request.type === 'APPLY_THEME') {
+    applyCustomTheme(request.textColor, request.bgColor);
+  }
+
+  if (request.type === 'RESET_THEME') {
+    if (themeStyleTag) {
+      themeStyleTag.innerHTML = '';
+    }
+  }
+
+  if (request.type === 'SCRAPE_PAGE') {
+    // Basic page scraper for side panel intelligence
+    const text = document.body.innerText;
+    return { pageText: text.substring(0, 10000) };
   }
 });
